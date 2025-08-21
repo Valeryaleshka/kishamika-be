@@ -1,7 +1,6 @@
-export type AuthInput = { email: string; password: string };
+export type AuthInput = { email: string; password: string; name?: string };
 export type SignInpData = { userId: number; email: string };
 export type AuthResult = {
-  accessToken: string;
   userId: number;
   username: string;
 };

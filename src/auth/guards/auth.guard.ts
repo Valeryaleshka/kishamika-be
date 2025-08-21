@@ -5,11 +5,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Request } from 'express';
 
-interface CustomRequest {
-  headers: {
-    authorization?: string;
-    [key: string]: unknown;
+export interface CustomRequest extends Request {
+  cookies: {
+    access_token?: string;
   };
 }
 
@@ -18,14 +18,12 @@ export class AuthUserGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<CustomRequest>();
-    const authorization = request.headers.authorization;
+    const request: CustomRequest = context.switchToHttp().getRequest();
+    const token = request.cookies?.access_token; // `string | undefined`
 
-    if (!authorization) {
+    if (!token) {
       throw new UnauthorizedException('No authorization token provided');
     }
-
-    const token = authorization.split(' ')[1]; // Safe
 
     if (!token) {
       throw new UnauthorizedException();

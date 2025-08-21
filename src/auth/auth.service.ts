@@ -1,8 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
+import { UserForCreate, UsersService } from '../users/users.service';
 import { AuthInput, AuthResult, SignInpData } from './auth.types';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { Response, Request } from 'express';
+import { CustomRequest } from './guards/auth.guard';
 
 @Injectable()
 export class AuthService {
@@ -11,14 +13,41 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async authenticate(input: AuthInput): Promise<AuthResult> {
+  async getMe(req: CustomRequest): Promise<AuthResult | null> {
+    const token = req.cookies?.access_token;
+    if (!token) {
+      return null;
+    }
+
+    try {
+      // Verify and decode the JWT token
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const decoded = await this.jwtService.verifyAsync(token);
+
+      // Fetch additional user details if needed (optional)
+      const user = await this.usersService.findById(decoded.sub);
+
+      if (!user) {
+        return null;
+      }
+
+      return {
+        userId: decoded.sub,
+        username: decoded.username,
+      };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
+    }
+  }
+
+  async authenticate(input: AuthInput, res: Response): Promise<AuthResult> {
     const user = await this.validateUser(input);
 
     if (!user) {
       throw new UnauthorizedException();
     }
 
-    return this.signIn(user);
+    return this.signIn(user, res);
   }
 
   async validateUser(input: AuthInput): Promise<SignInpData | null> {
@@ -36,28 +65,42 @@ export class AuthService {
     return null;
   }
 
-  async register(input: AuthInput): Promise<{ result: boolean }> {
+  async register(
+    input: UserForCreate,
+    res: Response,
+  ): Promise<{ result: boolean }> {
     const user = await this.usersService.addUser(input);
 
     if (!user) {
       throw new UnauthorizedException();
     }
 
-    await this.signIn(user);
+    await this.signIn(user, res);
 
     return { result: true };
   }
 
-  async signIn(user: SignInpData): Promise<AuthResult> {
+  signOut(res: Response) {
+    res.cookie('access_token', '', {
+      httpOnly: true,
+    });
+
+    return Promise.resolve({ message: 'Loged out' });
+  }
+
+  async signIn(user: SignInpData, res: Response): Promise<AuthResult> {
     const tokenPayload = {
       sub: user.userId,
       username: user.email,
     };
 
-    const accessToken = await this.jwtService.signAsync(tokenPayload);
+    const access_token = await this.jwtService.signAsync(tokenPayload);
+
+    res.cookie('access_token', access_token, {
+      httpOnly: true,
+    });
 
     return {
-      accessToken: accessToken,
       userId: user.userId,
       username: user.email,
     };

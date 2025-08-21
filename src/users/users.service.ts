@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuthInput, SignInpData } from '../auth/auth.types';
+import { SignInpData } from '../auth/auth.types';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 
@@ -33,18 +33,29 @@ export class UsersService {
     return user;
   }
 
+  async findById(id: number) {
+    const user = await this.databaseService.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      return null;
+    }
+    return user;
+  }
+
   async getAllUsers() {
     return this.databaseService.user.findMany();
   }
 
-  async addUser(user: AuthInput): Promise<SignInpData | null> {
+  async addUser(user: UserForCreate): Promise<SignInpData | null> {
     const saltOrRounds = 10;
     const hash = await bcrypt.hash(user.password, saltOrRounds);
 
     const newUser: UserForCreate = {
       email: user.email,
       password: hash,
-      name: 'user.email',
+      name: user.name,
     };
 
     const createdUser = await this.databaseService.user.create({

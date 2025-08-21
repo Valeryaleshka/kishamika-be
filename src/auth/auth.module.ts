@@ -4,8 +4,9 @@ import { AuthController } from './auth.controller';
 import { UsersService } from '../users/users.service';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
-import { JWT_SECRET } from '../configs/jwt-secret';
+
 import { DatabaseService } from '../database/database.service';
+import * as process from 'node:process';
 
 @Module({
   providers: [AuthService, UsersService, DatabaseService],
@@ -14,8 +15,8 @@ import { DatabaseService } from '../database/database.service';
     UsersModule,
     JwtModule.register({
       global: true,
-      secret: JWT_SECRET,
-      signOptions: { expiresIn: '1d' },
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '1h' },
     }),
   ],
 })
